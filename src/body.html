@@ -450,7 +450,7 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
   $('hearIn').onclick = function () { if (state.input) playSamples(state.input); };
 
   // ---------- server / network ----------
-  var DEFAULT_SERVER = '';
+  var DEFAULT_SERVER = 'https://kantho-delta.vercel.app/api';
   function server() {
     var s = store.get('server', '') || (/vercel\.app$/.test(location.hostname) ? location.origin + '/api' : DEFAULT_SERVER);
     return s.replace(/\/+$/, '');
@@ -484,8 +484,13 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
   }
   function serverTts(text, voiceName, tone) {
     var p = TONE_TTS[tone] || TONE_TTS.normal;
-    var url = server() + '/tts?voice=' + voiceName + '&rate=' + encodeURIComponent(p[0]) + '&pitch=' + encodeURIComponent(p[1]) + '&text=' + encodeURIComponent(text);
-    return fetch(url).then(function (r) { if (!r.ok) throw 0; return r.arrayBuffer(); }).then(decode);
+    var url = server() + '/tts?voice=' + voiceName + '&lang=' + tl(state.ttsLang || 'en') + '&rate=' + encodeURIComponent(p[0]) + '&pitch=' + encodeURIComponent(p[1]) + '&text=' + encodeURIComponent(text);
+    var engine = 'edge';
+    return fetch(url).then(function (r) {
+      if (!r.ok) return r.text().then(function (t) { console.warn('tts failed', t); throw 0; });
+      engine = r.headers.get('X-Kontho-Engine') || 'edge';
+      return r.arrayBuffer();
+    }).then(decode).then(function (x) { return { x: x, engine: engine }; });
   }
 
   // ---------- main action ----------
@@ -539,9 +544,14 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
     if (v === 'original' && !state.inputF0) female = true;
     if (!server() || !L[3]) return deviceSpeak(text, L, female);
     status('কণ্ঠ তৈরি হচ্ছে…');
-    return serverTts(text, L[3][female ? 1 : 0], state.tone).then(function (x) {
-      var post = { child: 'child', old: 'old', robot: 'robot', cartoon: 'cartoon' }[v];
-      var out = post ? D.transform(x, SR, { voice: post, tone: 'normal', pitch: post === 'child' ? -4 : 0, formant: post === 'child' ? 0.9 : 1 }) : x;
+    state.ttsLang = L[0];
+    return serverTts(text, L[3][female ? 1 : 0], state.tone).then(function (res) {
+      var x = res.x, post = { child: 'child', old: 'old', robot: 'robot', cartoon: 'cartoon' }[v];
+      var out;
+      if (res.engine === 'google') {
+        // Backup voice is female only: shape it on the phone for male voices and the chosen tone.
+        out = D.transform(x, SR, { voice: post || (female ? 'original' : 'male'), tone: state.tone, pitch: post === 'child' ? -4 : 0, formant: post === 'child' ? 0.9 : 1 });
+      } else out = post ? D.transform(x, SR, { voice: post, tone: 'normal', pitch: post === 'child' ? -4 : 0, formant: post === 'child' ? 0.9 : 1 }) : x;
       showResult(out, text);
       status('✅ ' + L[1] + ' · প্রাকৃতিক উচ্চারণ');
     }).catch(function () { return deviceSpeak(text, L, female, true); });
