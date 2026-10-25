@@ -43,7 +43,7 @@ h1 { font-family: var(--display); font-size: 30px; line-height: 1; margin: 0; fo
 .step h2 { font-family: var(--display); font-size: 21px; margin: 0; display: flex; align-items: center; gap: 10px; font-weight: 700; text-wrap: balance; }
 .num { width: 30px; height: 30px; border-radius: 50%; background: var(--primary-soft); color: var(--primary); display: grid; place-items: center; font-size: 17px; flex: none; }
 .en { color: var(--muted); font-weight: 500; font-family: var(--body); font-size: 14px; }
-.tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; background: var(--bg); padding: 5px; border-radius: 14px; }
+.tabs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; background: var(--bg); padding: 5px; border-radius: 14px; }
 .tabs button { border: 0; background: transparent; color: var(--ink); font: 600 16px var(--body); padding: 10px 4px; border-radius: 10px; cursor: pointer; }
 .tabs button[aria-selected="true"] { background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,.12); color: var(--primary); }
 .recbox { display: grid; justify-items: center; gap: 10px; padding: 6px 0; }
@@ -63,7 +63,9 @@ textarea { width: 100%; min-height: 110px; border: 1px solid var(--line); border
 .heard { width: 100%; background: var(--primary-soft); border-radius: 12px; padding: 10px 12px; font-size: 18px; overflow-wrap: anywhere; }
 .have { display: flex; align-items: center; gap: 10px; background: var(--primary-soft); border-radius: 12px; padding: 10px 12px; font-weight: 600; }
 .have button { margin-left: auto; }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.grid .opt { min-height: 110px; font-size: 18px; }
+.grid .opt .ic { font-size: 40px; }
 .opt { border: 2px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 14px; padding: 10px 6px; cursor: pointer; display: grid; justify-items: center; gap: 2px; font: 600 16px var(--body); min-height: 84px; }
 .opt .ic { font-size: 30px; line-height: 1.1; }
 .opt small { color: var(--muted); font-weight: 500; font-size: 13px; }
@@ -110,7 +112,6 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
     <h2 id="s1"><span class="num">১</span> কথা দিন <span class="en">Your words</span></h2>
     <div class="tabs" role="tablist">
       <button role="tab" id="tab-rec" aria-selected="true" data-tab="rec">🎙️ বলুন</button>
-      <button role="tab" id="tab-file" aria-selected="false" data-tab="file">📁 ভয়েস নোট</button>
       <button role="tab" id="tab-text" aria-selected="false" data-tab="text">✍️ লিখুন</button>
     </div>
 
@@ -167,7 +168,7 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
   <p class="status" id="status" role="status" aria-live="polite"></p>
 
   <section class="result" id="result" hidden aria-labelledby="rh">
-    <h2 id="rh">🎉 আপনার নতুন ভয়েস রেডি</h2>
+    <h2 id="rh">🎉 আপনার ভয়েস মেসেজ রেডি</h2>
     <div class="text-out" id="textOut" hidden></div>
     <div class="player">
       <button class="play" id="playBtn" aria-label="শুনুন"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
@@ -412,11 +413,9 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
     set: function (k, v) { try { localStorage.setItem('kontho.' + k, v); } catch (e) {} }
   };
 
+  // Only natural human AI voices: the on-device changers sounded too robotic.
   var VOICE_OPTS = [
-    ['ai-female', '👸', 'সুন্দর মেয়ে', 'AI · best'], ['ai-male', '🤵', 'সুন্দর ছেলে', 'AI · best'],
-    ['female', '👩', 'মেয়ে', 'Female'], ['male', '👨', 'ছেলে', 'Male'], ['child', '🧒', 'বাচ্চা', 'Child'],
-    ['old', '👴', 'বয়স্ক', 'Elder'], ['robot', '🤖', 'রোবট', 'Robot'], ['cartoon', '🐭', 'কার্টুন', 'Cartoon'],
-    ['original', '🙂', 'নিজের', 'My voice']
+    ['ai-female', '👩', 'সুন্দর মেয়ে কণ্ঠ', 'Female voice'], ['ai-male', '👨', 'সুন্দর ছেলে কণ্ঠ', 'Male voice']
   ];
   var TONE_OPTS = [['normal', 'স্বাভাবিক', 'Normal'], ['happy', '😊 খুশি', 'Happy'], ['calm', '😌 শান্ত', 'Calm'],
     ['sad', '😢 দুঃখী', 'Sad'], ['excited', '🤩 উত্তেজিত', 'Excited'], ['angry', '😠 রাগী', 'Angry']];
@@ -459,7 +458,7 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
   var QUICK = 15; // first chips (main Indian languages); the rest go in the "more" select
   var TONE_TTS = { normal: ['+0%', '+0Hz'], happy: ['+8%', '+12Hz'], excited: ['+15%', '+20Hz'], calm: ['-8%', '-4Hz'], sad: ['-15%', '-12Hz'], angry: ['+6%', '+4Hz'] };
 
-  var state = { tab: 'rec', voice: store.get('voice', 'female'), lang: 'same', src: store.get('src', 'bn'), tone: 'normal',
+  var state = { tab: 'rec', voice: /^ai-(fe)?male$/.test(store.get('voice', '')) ? store.get('voice', '') : 'ai-female', lang: 'same', src: store.get('src', 'bn'), tone: 'normal',
     input: null, inputF0: 0, heard: '', out: null, outText: '' };
   var inClaude = !!(window.claude && window.claude.use);
   var downloadsCap = null;
@@ -635,8 +634,8 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
   }
   function showHeard(t) { $('heard').hidden = false; $('heard').textContent = t; }
   function micFail() {
-    status('মাইক চালু হলো না। 📁 "ভয়েস নোট" থেকে অডিও দিন, অথবা ফোনের সেটিংসে মাইক অনুমতি দিন।');
-    $('tab-file').click();
+    status('মাইক চালু হলো না। ফোনের সেটিংসে Chrome-কে মাইক অনুমতি দিন, অথবা ✍️ "লিখুন" ব্যবহার করুন।');
+    $('tab-text').click();
   }
   function liveWave(stream) {
     try {
@@ -844,29 +843,14 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
 
   // ---------- start ----------
   if (inClaude) {
-    // Inside Claude the mic is blocked, so lead with voice notes.
-    $('tab-file').click();
-    $('recHint').textContent = 'এই প্রিভিউতে মাইক বন্ধ। ভয়েস নোট দিন, বা পুরো অ্যাপটা ফোনের Chrome-এ খুলুন।';
+    // Inside Claude the mic is blocked, so lead with typing.
+    $('tab-text').click();
+    $('recHint').textContent = 'এই প্রিভিউতে মাইক বন্ধ। পুরো অ্যাপটা ফোনের Chrome-এ খুলুন।';
   }
   syncPressed();
   if ('serviceWorker' in navigator && location.protocol === 'https:' && !inClaude) {
     navigator.serviceWorker.register('sw.js').catch(function () {});
   }
-  // Demo sample so the first screen shows what the app does.
-  (function demo() {
-    if (state.input) return;
-    var n = SR * 2, x = new Float32Array(n), ph = 0;
-    for (var i = 0; i < n; i++) {
-      var t = i / SR, f0 = 120 + 25 * Math.sin(2 * Math.PI * 1.3 * t), env = Math.min(1, t * 8, (2 - t) * 8) * (0.6 + 0.4 * Math.sin(2 * Math.PI * 3 * t));
-      ph += f0 / SR; if (ph >= 1) { ph -= 1; x[i] = env; }
-    }
-    [[700, 90], [1200, 110], [2600, 160]].forEach(function (fb) {
-      var r = Math.exp(-Math.PI * fb[1] / SR), a1 = 2 * r * Math.cos(2 * Math.PI * fb[0] / SR), a2 = -r * r, y1 = 0, y2 = 0;
-      for (var i = 0; i < n; i++) { var y = x[i] + a1 * y1 + a2 * y2; y2 = y1; y1 = y; x[i] = y; }
-    });
-    setInput(x);
-    $('haveLen').textContent = '(ডেমো আওয়াজ, নিজের ভয়েস দিয়ে বদলান)';
-  })();
 })();
 </script>
 </body></html>
