@@ -239,7 +239,7 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
     ['bn-BD', 'বাংলা (বাংলাদেশ)', 'bn-BD', ['bn-BD-PradeepNeural', 'bn-BD-NabanitaNeural']],
     ['ur-PK', 'اردو (Pakistan)', 'ur-PK', ['ur-PK-AsadNeural', 'ur-PK-UzmaNeural']],
     ['ar', 'العربية', 'ar-SA', ['ar-SA-HamedNeural', 'ar-SA-ZariyahNeural']],
-    ['en-US', 'English (US)', 'en-US', ['en-US-AndrewNeural', 'en-US-AvaNeural']],
+    ['en-US', 'English (US)', 'en-US', ['en-US-AndrewMultilingualNeural', 'en-US-AvaMultilingualNeural']],
     ['en-GB', 'English (UK)', 'en-GB', ['en-GB-RyanNeural', 'en-GB-SoniaNeural']],
     ['es', 'Español', 'es-ES', ['es-ES-AlvaroNeural', 'es-ES-ElviraNeural']],
     ['fr', 'Français', 'fr-FR', ['fr-FR-HenriNeural', 'fr-FR-DeniseNeural']],
@@ -249,7 +249,7 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
     ['ja', '日本語', 'ja-JP', ['ja-JP-KeitaNeural', 'ja-JP-NanamiNeural']]
   ];
   var QUICK = 15; // first chips (main Indian languages); the rest go in the "more" select
-  var TONE_TTS = { normal: ['+0%', '+0Hz'], happy: ['+8%', '+12Hz'], excited: ['+15%', '+20Hz'], calm: ['-8%', '-4Hz'], sad: ['-15%', '-12Hz'], angry: ['+6%', '+4Hz'] };
+  var TONE_TTS = { normal: ['-4%', '+0Hz'], happy: ['+8%', '+12Hz'], excited: ['+15%', '+20Hz'], calm: ['-8%', '-4Hz'], sad: ['-15%', '-12Hz'], angry: ['+6%', '+4Hz'] };
 
   var state = { tab: 'rec', voice: /^ai-(fe)?male$/.test(store.get('voice', '')) ? store.get('voice', '') : 'ai-female', lang: 'same', src: store.get('src', 'bn'), tone: 'normal',
     input: null, inputF0: 0, heard: '', out: null, outText: '' };
@@ -391,30 +391,60 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
     cancelAnimationFrame(liveRAF); $('liveWave').hidden = true;
   }
   // Speech modes (AI voice / other language): the browser turns speech into text live.
-  var listening = false, finals = '';
+  var listening = false, committed = '', session = '';
+  var isAndroid = /Android/i.test(navigator.userAgent);
   function startListen() {
-    finals = ''; state.heard = ''; listening = true; rec = { speech: true };
+    committed = ''; session = ''; state.heard = ''; listening = true; rec = { speech: true };
     showHeard('শুনছি… বলুন');
     recUi(true);
     listenOnce();
   }
+  // Android Chrome sends each result again with the earlier words included, which made
+  // words repeat 2-3 times. Rebuild the text from scratch on every event and drop repeats.
+  function mergeResults(results) {
+    var parts = [];
+    for (var i = 0; i < results.length; i++) {
+      var t = results[i][0].transcript.trim(), last = parts[parts.length - 1];
+      if (!t) continue;
+      if (last && t.toLowerCase().indexOf(last.toLowerCase()) === 0) parts[parts.length - 1] = t;
+      else if (last && last.toLowerCase().indexOf(t.toLowerCase()) === 0) continue;
+      else parts.push(t);
+    }
+    return parts.join(' ');
+  }
+  function dedupe(text) {
+    var w = text.split(/\s+/).filter(Boolean), changed = true;
+    while (changed) {
+      changed = false;
+      for (var n = Math.min(12, w.length >> 1); n >= 2 && !changed; n--) {
+        for (var i = 0; i + 2 * n <= w.length; i++) {
+          if (w.slice(i, i + n).join(' ').toLowerCase() === w.slice(i + n, i + 2 * n).join(' ').toLowerCase()) { w.splice(i + n, n); changed = true; break; }
+        }
+      }
+    }
+    return w.join(' ');
+  }
   function listenOnce() {
     try {
-      recog = new SRx(); recog.lang = langBy(state.src)[2]; recog.continuous = true; recog.interimResults = true;
+      session = '';
+      recog = new SRx(); recog.lang = langBy(state.src)[2];
+      recog.continuous = !isAndroid; recog.interimResults = true;
       recog.onresult = function (e) {
-        var interim = '';
-        for (var i = e.resultIndex; i < e.results.length; i++) {
-          if (e.results[i].isFinal) finals += e.results[i][0].transcript.trim() + ' ';
-          else interim += e.results[i][0].transcript;
-        }
-        state.heard = (finals + interim).trim();
+        session = mergeResults(e.results);
+        state.heard = dedupe((committed + ' ' + session).trim());
         showHeard(state.heard || 'শুনছি… বলুন');
       };
       recog.onerror = function (e) {
         if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { listening = false; stopListen(); micFail(); }
       };
       // Phones end recognition after short pauses; keep going until the user taps stop.
-      recog.onend = function () { recog = null; if (listening) listenOnce(); };
+      recog.onend = function () {
+        recog = null;
+        if (session) committed = dedupe((committed + ' ' + session).trim());
+        session = '';
+        state.heard = committed;
+        if (listening) listenOnce();
+      };
       recog.start();
     } catch (e) { recog = null; }
   }
