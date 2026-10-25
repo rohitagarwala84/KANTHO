@@ -9,12 +9,15 @@ import edge_tts
 import httpx
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import Response, FileResponse
+from pathlib import Path
 
 app = FastAPI(title="Kontho voice API", root_path="")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 MAX_CHARS = 1500
+ROOT = Path(__file__).resolve().parent.parent
+STATIC = {"index.html": "text/html; charset=utf-8", "sw.js": "text/javascript", "manifest.webmanifest": "application/manifest+json", "icon.svg": "image/svg+xml"}
 
 
 @app.get("/api")
@@ -51,3 +54,16 @@ async def translate(text: str = Query(..., max_length=MAX_CHARS), to: str = "en"
         raise HTTPException(502, "translate failed")
     data = r.json()
     return {"text": "".join(seg[0] for seg in data[0] if seg and seg[0]), "detected": data[2] if len(data) > 2 else src}
+
+
+# The app page itself, so one Vercel link serves both the app and the voice API.
+@app.get("/")
+def home():
+    return FileResponse(ROOT / "index.html", media_type=STATIC["index.html"], headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/{name}")
+def static_file(name: str):
+    if name not in STATIC:
+        raise HTTPException(404, "not found")
+    return FileResponse(ROOT / name, media_type=STATIC[name], headers={"Cache-Control": "no-cache"})
