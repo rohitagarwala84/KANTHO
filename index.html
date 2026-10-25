@@ -60,6 +60,7 @@ canvas.wave { width: 100%; height: 56px; display: block; }
 .drop input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 .drop b { font-size: 18px; }
 textarea { width: 100%; min-height: 110px; border: 1px solid var(--line); border-radius: 12px; padding: 12px; font: 18px var(--body); background: var(--bg); color: var(--ink); resize: vertical; }
+.heard { width: 100%; background: var(--primary-soft); border-radius: 12px; padding: 10px 12px; font-size: 18px; overflow-wrap: anywhere; }
 .have { display: flex; align-items: center; gap: 10px; background: var(--primary-soft); border-radius: 12px; padding: 10px 12px; font-weight: 600; }
 .have button { margin-left: auto; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
@@ -119,6 +120,7 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
       </button>
       <div class="timer" id="timer">0:00</div>
       <canvas class="wave" id="liveWave" width="520" height="56" hidden></canvas>
+      <div class="heard" id="heard" hidden></div>
       <p class="hint" id="recHint">লাল বোতাম চাপুন, কথা বলুন, আবার চাপুন · Tap, speak, tap again</p>
     </div>
 
@@ -151,7 +153,7 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
     <label class="row" id="moreLangRow">আরও ভাষা <span class="en">More languages</span>
       <select id="moreLang"></select>
     </label>
-    <label class="row" id="srcRow" hidden>আমি যে ভাষায় বলছি <span class="en">I am speaking in</span>
+    <label class="row" id="srcRow" hidden>আমি যে ভাষায় বলছি / লিখছি <span class="en">My language</span>
       <select id="srcLang"></select>
     </label>
   </section>
@@ -200,8 +202,8 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
   // Voice presets. p = pitch factor, f = formant factor.
   var VOICES = {
     original: { p: 1, f: 1 },
-    female:   { p: 1.6, f: 1.17 },  // male -> female
-    male:     { p: 0.64, f: 0.86 }, // female -> male
+    female:   { p: 1.5, f: 1.12 },  // male -> female
+    male:     { p: 0.68, f: 0.88 }, // female -> male
     child:    { p: 1.9, f: 1.28 },
     old:      { p: 0.82, f: 0.92, jitter: 0.03 },
     robot:    { p: 1, f: 1, robot: 110 },
@@ -229,7 +231,7 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
     for (var fr = 0; fr < frames; fr++) {
       var s = fr * hop, e = 0;
       for (i = 0; i < win; i++) e += x[s + i] * x[s + i];
-      if (Math.sqrt(e / win) < rmsAll * 0.25) { f0[fr] = 0; continue; }
+      if (Math.sqrt(e / win) < rmsAll * 0.1) { f0[fr] = 0; continue; }
       var run = 0, best = -1, bestV = 1;
       d[0] = 1;
       for (var lag = 1; lag <= maxLag; lag++) {
@@ -269,13 +271,16 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
   // Place analysis marks one period apart, snapped to waveform peaks.
   function pitchMarks(x, sr, track) {
     var marks = [], periods = [], voiced = [];
-    var unv = Math.round(sr / 100), t = 0;
+    var unv = Math.round(sr / 100), t = 0, pol = 0;
+    for (var q = 0; q < x.length; q++) pol += x[q] * x[q] * x[q];
+    pol = pol < 0 ? -1 : 1;
     while (t < x.length) {
       var fr = Math.min(track.f0.length - 1, Math.floor(t / track.hop));
       var f = track.f0[fr];
       if (f > 0) {
-        var P = Math.round(sr / f), lo = Math.max(0, t - (P >> 2)), hi = Math.min(x.length - 1, t + (P >> 2)), m = t, mv = -1;
-        for (var i = lo; i <= hi; i++) { var a = Math.abs(x[i]); if (a > mv) { mv = a; m = i; } }
+        var P = Math.round(sr / f), lo = Math.max(0, t - (P >> 2)), hi = Math.min(x.length - 1, t + (P >> 2)), m = t, mv = -Infinity;
+        // Snap to the same-signed peak every period, so grains line up in phase (no rough, husky sound).
+        for (var i = lo; i <= hi; i++) { var a = x[i] * pol; if (a > mv) { mv = a; m = i; } }
         if (marks.length && m <= marks[marks.length - 1]) m = marks[marks.length - 1] + (P >> 1);
         marks.push(m); periods.push(P); voiced.push(1); t = m + P;
       } else {
@@ -408,6 +413,7 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
   };
 
   var VOICE_OPTS = [
+    ['ai-female', '👸', 'সুন্দর মেয়ে', 'AI · best'], ['ai-male', '🤵', 'সুন্দর ছেলে', 'AI · best'],
     ['female', '👩', 'মেয়ে', 'Female'], ['male', '👨', 'ছেলে', 'Male'], ['child', '🧒', 'বাচ্চা', 'Child'],
     ['old', '👴', 'বয়স্ক', 'Elder'], ['robot', '🤖', 'রোবট', 'Robot'], ['cartoon', '🐭', 'কার্টুন', 'Cartoon'],
     ['original', '🙂', 'নিজের', 'My voice']
@@ -420,15 +426,29 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
     ['bn', 'বাংলা', 'bn-IN', ['bn-IN-BashkarNeural', 'bn-IN-TanishaaNeural']],
     ['hi', 'हिन्दी', 'hi-IN', ['hi-IN-MadhurNeural', 'hi-IN-SwaraNeural']],
     ['en', 'English', 'en-IN', ['en-IN-PrabhatNeural', 'en-IN-NeerjaNeural']],
-    ['ur', 'اردو', 'ur-PK', ['ur-PK-AsadNeural', 'ur-PK-UzmaNeural']],
-    ['ar', 'العربية', 'ar-SA', ['ar-SA-HamedNeural', 'ar-SA-ZariyahNeural']],
     ['ta', 'தமிழ்', 'ta-IN', ['ta-IN-ValluvarNeural', 'ta-IN-PallaviNeural']],
     ['te', 'తెలుగు', 'te-IN', ['te-IN-MohanNeural', 'te-IN-ShrutiNeural']],
     ['mr', 'मराठी', 'mr-IN', ['mr-IN-ManoharNeural', 'mr-IN-AarohiNeural']],
     ['gu', 'ગુજરાતી', 'gu-IN', ['gu-IN-NiranjanNeural', 'gu-IN-DhwaniNeural']],
+    ['kn', 'ಕನ್ನಡ', 'kn-IN', ['kn-IN-GaganNeural', 'kn-IN-SapnaNeural']],
+    ['ml', 'മലയാളം', 'ml-IN', ['ml-IN-MidhunNeural', 'ml-IN-SobhanaNeural']],
+    ['pa', 'ਪੰਜਾਬੀ', 'pa-IN', ['pa-IN-OjasNeural', 'pa-IN-VaaniNeural']],
+    ['or', 'ଓଡ଼ିଆ', 'or-IN', ['or-IN-SukantNeural', 'or-IN-SubhasiniNeural']],
+    ['as', 'অসমীয়া', 'as-IN', ['as-IN-PriyomNeural', 'as-IN-YashicaNeural']],
+    ['ur', 'اردو', 'ur-IN', ['ur-IN-SalmanNeural', 'ur-IN-GulNeural']],
     ['ne', 'नेपाली', 'ne-NP', ['ne-NP-SagarNeural', 'ne-NP-HemkalaNeural']],
+    ['bho', 'भोजपुरी', 'hi-IN', null],
+    ['mai', 'मैथिली', 'hi-IN', null],
+    ['sa', 'संस्कृतम्', 'hi-IN', null],
+    ['gom', 'कोंकणी', 'mr-IN', null],
+    ['sd', 'سنڌي', 'ur-IN', null],
+    ['doi', 'डोगरी', 'hi-IN', null],
+    ['mni-Mtei', 'Manipuri (Meitei)', 'bn-IN', null],
     ['bn-BD', 'বাংলা (বাংলাদেশ)', 'bn-BD', ['bn-BD-PradeepNeural', 'bn-BD-NabanitaNeural']],
-    ['en-US', 'English (US)', 'en-US', ['en-US-GuyNeural', 'en-US-JennyNeural']],
+    ['ur-PK', 'اردو (Pakistan)', 'ur-PK', ['ur-PK-AsadNeural', 'ur-PK-UzmaNeural']],
+    ['ar', 'العربية', 'ar-SA', ['ar-SA-HamedNeural', 'ar-SA-ZariyahNeural']],
+    ['en-US', 'English (US)', 'en-US', ['en-US-AndrewNeural', 'en-US-AvaNeural']],
+    ['en-GB', 'English (UK)', 'en-GB', ['en-GB-RyanNeural', 'en-GB-SoniaNeural']],
     ['es', 'Español', 'es-ES', ['es-ES-AlvaroNeural', 'es-ES-ElviraNeural']],
     ['fr', 'Français', 'fr-FR', ['fr-FR-HenriNeural', 'fr-FR-DeniseNeural']],
     ['de', 'Deutsch', 'de-DE', ['de-DE-ConradNeural', 'de-DE-KatjaNeural']],
@@ -436,7 +456,7 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
     ['zh', '中文', 'zh-CN', ['zh-CN-YunxiNeural', 'zh-CN-XiaoxiaoNeural']],
     ['ja', '日本語', 'ja-JP', ['ja-JP-KeitaNeural', 'ja-JP-NanamiNeural']]
   ];
-  var QUICK = 7; // first chips; the rest go in the "more" select
+  var QUICK = 15; // first chips (main Indian languages); the rest go in the "more" select
   var TONE_TTS = { normal: ['+0%', '+0Hz'], happy: ['+8%', '+12Hz'], excited: ['+15%', '+20Hz'], calm: ['-8%', '-4Hz'], sad: ['-15%', '-12Hz'], angry: ['+6%', '+4Hz'] };
 
   var state = { tab: 'rec', voice: store.get('voice', 'female'), lang: 'same', src: store.get('src', 'bn'), tone: 'normal',
@@ -445,6 +465,7 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
   var downloadsCap = null;
   if (inClaude) window.claude.use('downloads').then(function (d) { downloadsCap = d; }).catch(function () {});
 
+  function speechMode() { return state.lang !== 'same' || state.voice.indexOf('ai-') === 0; }
   function langBy(c) { for (var i = 0; i < LANGS.length; i++) if (LANGS[i][0] === c) return LANGS[i]; return LANGS[1]; }
   function status(t) { $('status').textContent = t || ''; }
 
@@ -487,7 +508,7 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
     document.querySelectorAll('#langChips .chip').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.l === state.lang); });
     var inQuick = LANGS.slice(0, QUICK).some(function (l) { return l[0] === state.lang; });
     $('moreLang').value = inQuick ? '' : state.lang;
-    $('srcRow').hidden = !(state.lang !== 'same' && state.tab !== 'text');
+    $('srcRow').hidden = !(speechMode() || state.tab === 'text');
   }
 
   // ---------- tabs ----------
@@ -497,7 +518,6 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
       document.querySelectorAll('.tabs button').forEach(function (x) { x.setAttribute('aria-selected', x === b); });
       ['rec', 'file', 'text'].forEach(function (t) { $('pane-' + t).hidden = t !== state.tab; });
       $('haveAudio').hidden = !(state.input && state.tab !== 'text');
-      if (state.tab === 'text' && state.lang === 'same') setLang('en');
       syncPressed();
     };
   });
@@ -544,7 +564,9 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
   // ---------- recording ----------
   var rec = null, chunks = [], tStart = 0, tick = null, recog = null, liveRAF = null, micStream = null;
   $('recBtn').onclick = function () { rec ? stopRec() : startRec(); };
+  var SRx = window.SpeechRecognition || window.webkitSpeechRecognition;
   function startRec() {
+    if (speechMode() && SRx) return startListen();
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return micFail();
     navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }).then(function (stream) {
       micStream = stream; chunks = []; state.heard = '';
@@ -560,17 +582,58 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
       $('recHint').textContent = 'বলছেন… শেষ হলে আবার চাপুন · Tap again to stop';
       tick = setInterval(function () { var s = Math.floor((Date.now() - tStart) / 1000); $('timer').textContent = Math.floor(s / 60) + ':' + ('0' + s % 60).slice(-2); if (s >= 180) stopRec(); }, 250);
       liveWave(stream);
-      if (state.lang !== 'same') startRecognition();
     }).catch(micFail);
   }
-  function stopRec() {
-    if (!rec) return;
-    rec.stop(); rec = null; clearInterval(tick);
-    if (recog) { try { recog.stop(); } catch (e) {} }
-    cancelAnimationFrame(liveRAF); $('liveWave').hidden = true;
-    $('recBtn').classList.remove('on'); $('recBtn').setAttribute('aria-label', 'রেকর্ড শুরু করুন');
-    $('recHint').textContent = 'আবার বলতে চাইলে লাল বোতাম চাপুন';
+  function recUi(on) {
+    $('recBtn').classList.toggle('on', on); $('recBtn').setAttribute('aria-label', on ? 'রেকর্ড থামান' : 'রেকর্ড শুরু করুন');
+    $('recHint').textContent = on ? 'বলছেন… শেষ হলে আবার চাপুন · Tap again to stop' : 'আবার বলতে চাইলে লাল বোতাম চাপুন';
+    if (on) {
+      tStart = Date.now();
+      tick = setInterval(function () { var s = Math.floor((Date.now() - tStart) / 1000); $('timer').textContent = Math.floor(s / 60) + ':' + ('0' + s % 60).slice(-2); if (s >= 180) stopRec(); }, 250);
+    } else clearInterval(tick);
   }
+  function stopRec() {
+    if (listening) return stopListen();
+    if (!rec) return;
+    rec.stop(); rec = null; recUi(false);
+    cancelAnimationFrame(liveRAF); $('liveWave').hidden = true;
+  }
+  // Speech modes (AI voice / other language): the browser turns speech into text live.
+  var listening = false, finals = '';
+  function startListen() {
+    finals = ''; state.heard = ''; listening = true; rec = { speech: true };
+    showHeard('শুনছি… বলুন');
+    recUi(true);
+    listenOnce();
+  }
+  function listenOnce() {
+    try {
+      recog = new SRx(); recog.lang = langBy(state.src)[2]; recog.continuous = true; recog.interimResults = true;
+      recog.onresult = function (e) {
+        var interim = '';
+        for (var i = e.resultIndex; i < e.results.length; i++) {
+          if (e.results[i].isFinal) finals += e.results[i][0].transcript.trim() + ' ';
+          else interim += e.results[i][0].transcript;
+        }
+        state.heard = (finals + interim).trim();
+        showHeard(state.heard || 'শুনছি… বলুন');
+      };
+      recog.onerror = function (e) {
+        if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { listening = false; stopListen(); micFail(); }
+      };
+      // Phones end recognition after short pauses; keep going until the user taps stop.
+      recog.onend = function () { recog = null; if (listening) listenOnce(); };
+      recog.start();
+    } catch (e) { recog = null; }
+  }
+  function stopListen() {
+    listening = false; rec = null; recUi(false);
+    if (recog) { try { recog.stop(); } catch (e) {} }
+    setTimeout(function () {
+      showHeard(state.heard ? state.heard : 'কিছু শোনা যায়নি। আবার চাপুন, একটু জোরে পরিষ্কার করে বলুন।');
+    }, 600);
+  }
+  function showHeard(t) { $('heard').hidden = false; $('heard').textContent = t; }
   function micFail() {
     status('মাইক চালু হলো না। 📁 "ভয়েস নোট" থেকে অডিও দিন, অথবা ফোনের সেটিংসে মাইক অনুমতি দিন।');
     $('tab-file').click();
@@ -583,17 +646,6 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
       (function loop() { an.getFloatTimeDomainData(buf); drawWave(cv, buf); liveRAF = requestAnimationFrame(loop); })();
     } catch (e) {}
   }
-  function startRecognition() {
-    var SRx = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SRx) return;
-    try {
-      recog = new SRx(); recog.lang = langBy(state.src)[2]; recog.continuous = true; recog.interimResults = false;
-      recog.onresult = function (e) { var t = ''; for (var i = 0; i < e.results.length; i++) t += e.results[i][0].transcript + ' '; state.heard = t.trim(); };
-      recog.onerror = function () {}; recog.onend = function () { recog = null; };
-      recog.start();
-    } catch (e) { recog = null; }
-  }
-
   // ---------- file input ----------
   $('fileIn').onchange = function () {
     var f = this.files && this.files[0]; if (!f) return;
@@ -605,14 +657,19 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
   $('hearIn').onclick = function () { if (state.input) playSamples(state.input); };
 
   // ---------- server / network ----------
-  function server() { return (store.get('server', '') || '').replace(/\/+$/, ''); }
-  $('serverUrl').value = server();
+  var DEFAULT_SERVER = '';
+  function server() {
+    var s = store.get('server', '') || (/vercel\.app$/.test(location.hostname) ? location.origin + '/api' : DEFAULT_SERVER);
+    return s.replace(/\/+$/, '');
+  }
+  $('serverUrl').value = store.get('server', '');
+  $('serverUrl').placeholder = server() || 'https://kantho.vercel.app/api';
   $('serverUrl').onchange = function () { store.set('server', this.value.trim()); };
   $('testServer').onclick = function () {
     store.set('server', $('serverUrl').value.trim());
     $('serverState').textContent = 'দেখছি…';
     if (!server()) { $('serverState').textContent = 'লিংক দিন'; return; }
-    fetch(server() + '/').then(function (r) { return r.json(); }).then(function () { $('serverState').textContent = '✅ চালু আছে'; })
+    fetch(server()).then(function (r) { return r.json(); }).then(function () { $('serverState').textContent = '✅ চালু আছে'; })
       .catch(function () { $('serverState').textContent = '❌ পাওয়া যাচ্ছে না (প্রথমবার ৩০ সেকেন্ড লাগতে পারে)'; });
   };
   function tl(code) { return code === 'bn-BD' ? 'bn' : code === 'en-US' ? 'en' : code; }
@@ -649,7 +706,7 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
     }, 60);
   };
 
-  function wantsSpeech() { return state.tab === 'text' || state.lang !== 'same'; }
+  function wantsSpeech() { return state.tab === 'text' || speechMode(); }
 
   function run() {
     status('');
@@ -674,19 +731,20 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
   function getSourceText() {
     if (state.tab === 'text') return Promise.resolve($('textIn').value.trim());
     if (state.heard) return Promise.resolve(state.heard);
+    if (state.tab === 'rec' && SRx) return Promise.reject(new Error('এখন লাল বোতাম চেপে আবার বলুন। আমি কথা লিখে নিয়ে নতুন কণ্ঠে বলব।'));
     if (!state.input) return Promise.reject(new Error('আগে কথা বলুন বা একটা ভয়েস নোট দিন (ধাপ ১)।'));
     status('কথা বোঝা হচ্ছে…');
     return serverStt(state.input).catch(function () {
-      throw new Error('অনুবাদের জন্য কথা বোঝা গেল না। "ভাষা" বেছে নিয়ে তারপর রেকর্ড করুন (Chrome-এ), অথবা "লিখুন" ব্যবহার করুন।');
+      throw new Error('ভয়েস নোট থেকে কথা বোঝা গেল না। 🎙️ "বলুন" থেকে সরাসরি বলুন (Chrome-এ), অথবা ✍️ "লিখুন" ব্যবহার করুন।');
     });
   }
 
   // Natural neural voice from the free server, then on-device styling for child/elder/robot/cartoon.
   function speak(text, target) {
     var L = langBy(target), v = state.voice;
-    var female = v === 'female' || v === 'child' || v === 'cartoon' || (v === 'original' && state.inputF0 > 165);
+    var female = v === 'ai-female' || v === 'female' || v === 'child' || v === 'cartoon' || (v === 'original' && state.inputF0 > 165);
     if (v === 'original' && !state.inputF0) female = true;
-    if (!server()) return deviceSpeak(text, L, female);
+    if (!server() || !L[3]) return deviceSpeak(text, L, female);
     status('কণ্ঠ তৈরি হচ্ছে…');
     return serverTts(text, L[3][female ? 1 : 0], state.tone).then(function (x) {
       var post = { child: 'child', old: 'old', robot: 'robot', cartoon: 'cartoon' }[v];
@@ -699,8 +757,10 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
   // Fallback: the phone's own voice. Plays fine but cannot be saved as a file.
   function deviceSpeak(text, L, female, serverDown) {
     showResult(null, text);
-    var note = serverDown ? 'ভয়েস সার্ভার এখন সাড়া দিচ্ছে না।' : 'অনুবাদ রেডি।';
-    note += ' এখন ফোনের নিজের কণ্ঠে শোনানো হচ্ছে। WhatsApp-এ অডিও পাঠাতে ⚙ সেটিংসে ফ্রি ভয়েস সার্ভার লিংক দিন। ততক্ষণ লেখাটা কপি করে পাঠাতে পারেন।';
+    var note = !server() ? 'ফোনের নিজের কণ্ঠে শোনানো হচ্ছে। সুন্দর AI কণ্ঠে অডিও ফাইল বানাতে ফ্রি ভয়েস সার্ভার লাগবে (⚙ সেটিংস)।'
+      : !L[3] ? 'এই ভাষার AI কণ্ঠ এখনো নেই, তাই ফোনের নিজের কণ্ঠে শোনানো হচ্ছে।'
+      : 'AI কণ্ঠ এখন পাওয়া গেল না (একটু পরে আবার চেষ্টা করুন), তাই ফোনের নিজের কণ্ঠে শোনানো হচ্ছে।';
+    note += ' লেখাটা WhatsApp-এ পাঠাতে পারেন।';
     $('resultNote').textContent = note; $('resultNote').hidden = false;
     deviceVoice = { text: text, L: L, female: female };
     sayOnDevice();
@@ -713,7 +773,7 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
     var u = new SpeechSynthesisUtterance(deviceVoice.text), loc = deviceVoice.L[2];
     u.lang = loc;
     var vs = speechSynthesis.getVoices().filter(function (v) { return v.lang && v.lang.replace('_', '-').indexOf(loc.slice(0, 2)) === 0; });
-    var want = deviceVoice.female ? /female|woman|zira|swara|tanishaa|heera|kalpana|samantha|google/i : /male|man|madhur|bashkar|ravi|hemant|david|daniel/i;
+    var want = deviceVoice.female ? /female|woman|zira|swara|tanishaa|heera|kalpana|samantha|google/i : /(^|[^e])male|\bman\b|madhur|bashkar|ravi|hemant|david|daniel|prabhat/i;
     u.voice = vs.filter(function (v) { return want.test(v.name); })[0] || vs[0] || null;
     var T = D.TONES[state.tone];
     u.rate = T.speed; u.pitch = Math.max(0.1, Math.min(2, (deviceVoice.female ? 1.15 : 0.8) * Math.pow(2, T.st / 12)));

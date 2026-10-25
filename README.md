@@ -18,15 +18,20 @@ Apnar kotha, je kono kontho-e, je kono bhashay. WhatsApp voice message er jonno.
 | Kontho bodol (male/female/child/robot) | Nijer lekha TD-PSOLA engine (pitch + formant shift), phone-er browser-e | ₹0, internet lage na |
 | Bola kotha → lekha | Browser Speech Recognition (Chrome), na hole Whisper (server) | ₹0 |
 | Onubad | Google Translate free endpoint | ₹0 |
-| Natural kontho (onno bhasha) | edge-tts (Microsoft neural voices) on free Hugging Face Space | ₹0 |
-| App hosting | GitHub Pages (PWA, phone-e install kora jay) | ₹0 |
+| Sundor AI kontho + onno bhasha | edge-tts (Microsoft neural voices) on free Vercel function (`api/`) | ₹0 |
+| App hosting | Vercel / GitHub Pages (PWA, phone-e install kora jay) | ₹0 |
 
 ## Folder
 - `app/` — puro app (index.html, sw.js, manifest). Jekono free static host-e rakhun.
 - `server/` — free voice server (Hugging Face Space, Docker).
 - `src/` — source (dsp.js = voice engine, body.html = UI). `node build.js` diye app banay.
 
-## Free voice server chalu korar niyom (5 minute)
+## Sobcheye sohoj: Vercel e free deploy (AI voice soho)
+1. https://vercel.com/signup → "Continue with GitHub".
+2. "Import" → KANTHO repo → "Deploy".
+3. Je link pabe (jemon `https://kantho.vercel.app`) seta-i full app. AI voice server (`/api`) eki sathe chole.
+
+## Alternative: Hugging Face server (5 minute)
 1. https://huggingface.co e free account khulun.
 2. **New Space** → naam `kontho` → SDK: **Docker** → Blank → Public → Create.
 3. `server/` folder er 4 ta file (app.py, requirements.txt, Dockerfile, README.md) upload korun (Files → Add file → Upload).

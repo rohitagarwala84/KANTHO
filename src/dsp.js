@@ -6,8 +6,8 @@
   // Voice presets. p = pitch factor, f = formant factor.
   var VOICES = {
     original: { p: 1, f: 1 },
-    female:   { p: 1.6, f: 1.17 },  // male -> female
-    male:     { p: 0.64, f: 0.86 }, // female -> male
+    female:   { p: 1.5, f: 1.12 },  // male -> female
+    male:     { p: 0.68, f: 0.88 }, // female -> male
     child:    { p: 1.9, f: 1.28 },
     old:      { p: 0.82, f: 0.92, jitter: 0.03 },
     robot:    { p: 1, f: 1, robot: 110 },
@@ -35,7 +35,7 @@
     for (var fr = 0; fr < frames; fr++) {
       var s = fr * hop, e = 0;
       for (i = 0; i < win; i++) e += x[s + i] * x[s + i];
-      if (Math.sqrt(e / win) < rmsAll * 0.25) { f0[fr] = 0; continue; }
+      if (Math.sqrt(e / win) < rmsAll * 0.1) { f0[fr] = 0; continue; }
       var run = 0, best = -1, bestV = 1;
       d[0] = 1;
       for (var lag = 1; lag <= maxLag; lag++) {
@@ -75,13 +75,16 @@
   // Place analysis marks one period apart, snapped to waveform peaks.
   function pitchMarks(x, sr, track) {
     var marks = [], periods = [], voiced = [];
-    var unv = Math.round(sr / 100), t = 0;
+    var unv = Math.round(sr / 100), t = 0, pol = 0;
+    for (var q = 0; q < x.length; q++) pol += x[q] * x[q] * x[q];
+    pol = pol < 0 ? -1 : 1;
     while (t < x.length) {
       var fr = Math.min(track.f0.length - 1, Math.floor(t / track.hop));
       var f = track.f0[fr];
       if (f > 0) {
-        var P = Math.round(sr / f), lo = Math.max(0, t - (P >> 2)), hi = Math.min(x.length - 1, t + (P >> 2)), m = t, mv = -1;
-        for (var i = lo; i <= hi; i++) { var a = Math.abs(x[i]); if (a > mv) { mv = a; m = i; } }
+        var P = Math.round(sr / f), lo = Math.max(0, t - (P >> 2)), hi = Math.min(x.length - 1, t + (P >> 2)), m = t, mv = -Infinity;
+        // Snap to the same-signed peak every period, so grains line up in phase (no rough, husky sound).
+        for (var i = lo; i <= hi; i++) { var a = x[i] * pol; if (a > mv) { mv = a; m = i; } }
         if (marks.length && m <= marks[marks.length - 1]) m = marks[marks.length - 1] + (P >> 1);
         marks.push(m); periods.push(P); voiced.push(1); t = m + P;
       } else {
