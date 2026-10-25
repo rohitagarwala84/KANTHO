@@ -1,0 +1,802 @@
+<!doctype html><html lang="bn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0E6E66"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon.svg"><link rel="apple-touch-icon" href="icon.svg"><style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style></head><body><title>Kontho Voice Studio</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+Da+2:wght@500;700;800&family=Hind+Siliguri:wght@400;500;600&display=swap">
+<style>
+/* Layout: one thumb-friendly column, four numbered steps (a real sequence), one big action, result card. */
+:root {
+  --bg: #F3F5F4;
+  --surface: #FFFFFF;
+  --ink: #18242A;
+  --muted: #5B6B70;
+  --line: #DCE3E1;
+  --primary: #0E6E66;
+  --primary-ink: #FFFFFF;
+  --primary-soft: #DDEFEC;
+  --rec: #E5484D;
+  --rec-soft: #FCE4E4;
+  --wa: #1DA851;
+  --warn-bg: #FFF4D6;
+  --warn-ink: #6B4E00;
+  --display: "Baloo Da 2", "Hind Siliguri", system-ui, sans-serif;
+  --body: "Hind Siliguri", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --r: 18px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0F1716; --surface: #18221F; --ink: #E7EFEC; --muted: #9AABA7; --line: #2A3835;
+  --primary: #3FB8AC; --primary-ink: #04201D; --primary-soft: #1C3632; --rec: #FF6B6F; --rec-soft: #3A1E20;
+  --wa: #34C46B; --warn-bg: #3A3110; --warn-ink: #F3D98A; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0F1716; --surface: #18221F; --ink: #E7EFEC; --muted: #9AABA7; --line: #2A3835;
+  --primary: #3FB8AC; --primary-ink: #04201D; --primary-soft: #1C3632; --rec: #FF6B6F; --rec-soft: #3A1E20;
+  --wa: #34C46B; --warn-bg: #3A3110; --warn-ink: #F3D98A; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 17px; line-height: 1.5; }
+.wrap { max-width: 560px; margin: 0 auto; padding-block: 20px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 18px; }
+header { display: flex; align-items: center; gap: 12px; }
+.logo { width: 52px; height: 52px; border-radius: 16px; background: var(--primary); display: grid; place-items: center; flex: none; }
+.logo svg { width: 30px; height: 30px; }
+h1 { font-family: var(--display); font-size: 30px; line-height: 1; margin: 0; font-weight: 800; }
+.tag { color: var(--muted); font-size: 15px; margin: 2px 0 0; }
+.step { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; display: grid; gap: 12px; }
+.step h2 { font-family: var(--display); font-size: 21px; margin: 0; display: flex; align-items: center; gap: 10px; font-weight: 700; text-wrap: balance; }
+.num { width: 30px; height: 30px; border-radius: 50%; background: var(--primary-soft); color: var(--primary); display: grid; place-items: center; font-size: 17px; flex: none; }
+.en { color: var(--muted); font-weight: 500; font-family: var(--body); font-size: 14px; }
+.tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; background: var(--bg); padding: 5px; border-radius: 14px; }
+.tabs button { border: 0; background: transparent; color: var(--ink); font: 600 16px var(--body); padding: 10px 4px; border-radius: 10px; cursor: pointer; }
+.tabs button[aria-selected="true"] { background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,.12); color: var(--primary); }
+.recbox { display: grid; justify-items: center; gap: 10px; padding: 6px 0; }
+.recbtn { width: 116px; height: 116px; border-radius: 50%; border: 0; background: var(--rec); color: #fff; display: grid; place-items: center; cursor: pointer; box-shadow: 0 0 0 10px var(--rec-soft); transition: transform .15s; }
+.recbtn:active { transform: scale(.96); }
+.recbtn svg { width: 46px; height: 46px; }
+.recbtn.on { animation: pulse 1.2s infinite; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 20px var(--rec-soft); } }
+.timer { font: 700 22px var(--display); font-variant-numeric: tabular-nums; }
+.hint { color: var(--muted); font-size: 15px; text-align: center; margin: 0; }
+canvas.wave { width: 100%; height: 56px; display: block; }
+.drop { border: 2px dashed var(--line); border-radius: 14px; padding: 22px 12px; text-align: center; cursor: pointer; display: grid; gap: 4px; }
+.drop:hover, .drop:focus-within { border-color: var(--primary); }
+.drop input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.drop b { font-size: 18px; }
+textarea { width: 100%; min-height: 110px; border: 1px solid var(--line); border-radius: 12px; padding: 12px; font: 18px var(--body); background: var(--bg); color: var(--ink); resize: vertical; }
+.have { display: flex; align-items: center; gap: 10px; background: var(--primary-soft); border-radius: 12px; padding: 10px 12px; font-weight: 600; }
+.have button { margin-left: auto; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.opt { border: 2px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 14px; padding: 10px 6px; cursor: pointer; display: grid; justify-items: center; gap: 2px; font: 600 16px var(--body); min-height: 84px; }
+.opt .ic { font-size: 30px; line-height: 1.1; }
+.opt small { color: var(--muted); font-weight: 500; font-size: 13px; }
+.opt[aria-pressed="true"] { border-color: var(--primary); background: var(--primary-soft); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { border: 2px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 8px 14px; font: 600 16px var(--body); cursor: pointer; }
+.chip[aria-pressed="true"] { border-color: var(--primary); background: var(--primary-soft); color: var(--primary); }
+label.row { display: grid; gap: 4px; font-weight: 600; font-size: 15px; }
+select, input[type="url"] { width: 100%; font: 17px var(--body); padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); color: var(--ink); }
+.go { border: 0; background: var(--primary); color: var(--primary-ink); font: 800 22px var(--display); padding: 16px; border-radius: var(--r); cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 10px; min-height: 64px; }
+.go:disabled { opacity: .55; cursor: not-allowed; }
+.small { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 10px; padding: 6px 12px; font: 600 15px var(--body); cursor: pointer; }
+.result { background: var(--surface); border: 2px solid var(--primary); border-radius: var(--r); padding: 16px; display: grid; gap: 12px; }
+.result h2 { margin: 0; font: 700 21px var(--display); }
+.player { display: flex; align-items: center; gap: 12px; }
+.play { width: 60px; height: 60px; border-radius: 50%; border: 0; background: var(--primary); color: var(--primary-ink); display: grid; place-items: center; cursor: pointer; flex: none; }
+.play svg { width: 26px; height: 26px; }
+.player canvas { flex: 1; min-width: 0; height: 52px; }
+.text-out { background: var(--bg); border-radius: 12px; padding: 10px 12px; font-size: 18px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.wa { border: 0; background: var(--wa); color: #fff; font: 800 21px var(--display); padding: 15px; border-radius: var(--r); cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 10px; }
+.wa svg { width: 26px; height: 26px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.note { background: var(--warn-bg); color: var(--warn-ink); border-radius: 12px; padding: 10px 12px; font-size: 15px; }
+.status { text-align: center; color: var(--muted); font-size: 15px; min-height: 1.5em; margin: 0; }
+details { color: var(--muted); font-size: 15px; }
+details summary { cursor: pointer; font-weight: 600; }
+details .box { display: grid; gap: 10px; padding-top: 10px; }
+button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-visible, .drop:focus-within { outline: 3px solid var(--primary); outline-offset: 2px; }
+.spin { width: 22px; height: 22px; border: 3px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: sp .8s linear infinite; }
+@keyframes sp { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .recbtn.on, .spin { animation: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M4 10v4M8 6v12M12 3v18M16 7v10M20 10v4"/></svg></div>
+    <div>
+      <h1>কণ্ঠ Kontho</h1>
+      <p class="tag">আপনার কথা, যে কোনো কণ্ঠে · যে কোনো ভাষায়</p>
+    </div>
+  </header>
+
+  <section class="step" aria-labelledby="s1">
+    <h2 id="s1"><span class="num">১</span> কথা দিন <span class="en">Your words</span></h2>
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tab-rec" aria-selected="true" data-tab="rec">🎙️ বলুন</button>
+      <button role="tab" id="tab-file" aria-selected="false" data-tab="file">📁 ভয়েস নোট</button>
+      <button role="tab" id="tab-text" aria-selected="false" data-tab="text">✍️ লিখুন</button>
+    </div>
+
+    <div id="pane-rec" class="recbox">
+      <button class="recbtn" id="recBtn" aria-label="রেকর্ড শুরু করুন">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12h-2Z"/></svg>
+      </button>
+      <div class="timer" id="timer">0:00</div>
+      <canvas class="wave" id="liveWave" width="520" height="56" hidden></canvas>
+      <p class="hint" id="recHint">লাল বোতাম চাপুন, কথা বলুন, আবার চাপুন · Tap, speak, tap again</p>
+    </div>
+
+    <div id="pane-file" hidden>
+      <label class="drop" for="fileIn">
+        <input type="file" id="fileIn" accept="audio/*,.opus,.ogg,.m4a,.mp3,.wav,.aac">
+        <b>ভয়েস নোট বা অডিও বেছে নিন</b>
+        <span class="en">WhatsApp voice note, mp3, m4a, wav</span>
+      </label>
+    </div>
+
+    <div id="pane-text" hidden>
+      <textarea id="textIn" placeholder="এখানে লিখুন… (যে কোনো ভাষায়)">আমি আজ একটু দেরি করে বাড়ি ফিরব। চিন্তা করো না।</textarea>
+    </div>
+
+    <div class="have" id="haveAudio" hidden>
+      <span>✅ অডিও তৈরি <span class="en" id="haveLen"></span></span>
+      <button class="small" id="hearIn">▶ শুনুন</button>
+    </div>
+  </section>
+
+  <section class="step" aria-labelledby="s2">
+    <h2 id="s2"><span class="num">২</span> কার কণ্ঠ? <span class="en">Which voice</span></h2>
+    <div class="grid" id="voiceGrid"></div>
+  </section>
+
+  <section class="step" aria-labelledby="s3">
+    <h2 id="s3"><span class="num">৩</span> কোন ভাষায়? <span class="en">Language</span></h2>
+    <div class="chips" id="langChips"></div>
+    <label class="row" id="moreLangRow">আরও ভাষা <span class="en">More languages</span>
+      <select id="moreLang"></select>
+    </label>
+    <label class="row" id="srcRow" hidden>আমি যে ভাষায় বলছি <span class="en">I am speaking in</span>
+      <select id="srcLang"></select>
+    </label>
+  </section>
+
+  <section class="step" aria-labelledby="s4">
+    <h2 id="s4"><span class="num">৪</span> কেমন সুরে? <span class="en">Tone</span></h2>
+    <div class="chips" id="toneChips"></div>
+  </section>
+
+  <button class="go" id="goBtn">✨ তৈরি করুন <span class="en" style="color:inherit;opacity:.8">Make it</span></button>
+  <p class="status" id="status" role="status" aria-live="polite"></p>
+
+  <section class="result" id="result" hidden aria-labelledby="rh">
+    <h2 id="rh">🎉 আপনার নতুন ভয়েস রেডি</h2>
+    <div class="text-out" id="textOut" hidden></div>
+    <div class="player">
+      <button class="play" id="playBtn" aria-label="শুনুন"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
+      <canvas id="outWave" width="420" height="52"></canvas>
+    </div>
+    <div class="note" id="resultNote" hidden></div>
+    <button class="wa" id="waBtn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.5-3.9-4.7-4.1-.1-.2-1.1-1.5-1.1-2.8 0-1.3.7-2 1-2.3.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.4.6-.3.4c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1c.2-.3.4-.2.6-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.3Z"/></svg> WhatsApp-এ পাঠান</button>
+    <div class="row2">
+      <button class="small" id="saveBtn">⬇ সেভ করুন</button>
+      <button class="small" id="againBtn">↺ নতুন করে</button>
+    </div>
+  </section>
+
+  <details id="settings">
+    <summary>⚙ সেটিংস ও তথ্য · Settings</summary>
+    <div class="box">
+      <label class="row">ফ্রি ভয়েস সার্ভার লিংক <span class="en">Voice server URL (for translated speech)</span>
+        <input type="url" id="serverUrl" placeholder="https://your-name-kontho.hf.space">
+      </label>
+      <div class="row2"><button class="small" id="testServer">সার্ভার টেস্ট</button><span id="serverState" class="en"></span></div>
+      <p>কণ্ঠ বদল (মেয়ে, ছেলে, বাচ্চা, রোবট) পুরোপুরি আপনার ফোনেই হয়, কোনো খরচ নেই, ইন্টারনেট লাগে না। অনুবাদ করা কথা প্রাকৃতিক কণ্ঠে শোনাতে ফ্রি সার্ভার ব্যবহার হয়।</p>
+    </div>
+  </details>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
+<script>// Kontho voice engine: TD-PSOLA pitch + formant + speed shifting, all on-device.
+// Works in the browser and in Node (for tests). No network, no cost.
+(function (root) {
+  'use strict';
+
+  // Voice presets. p = pitch factor, f = formant factor.
+  var VOICES = {
+    original: { p: 1, f: 1 },
+    female:   { p: 1.6, f: 1.17 },  // male -> female
+    male:     { p: 0.64, f: 0.86 }, // female -> male
+    child:    { p: 1.9, f: 1.28 },
+    old:      { p: 0.82, f: 0.92, jitter: 0.03 },
+    robot:    { p: 1, f: 1, robot: 110 },
+    cartoon:  { p: 1.45, f: 1.4 }
+  };
+  // Tone (emotion) presets: semitone offset, speed, intonation spread.
+  var TONES = {
+    normal:  { st: 0,  speed: 1,    spread: 1 },
+    happy:   { st: 1,  speed: 1.07, spread: 1.35 },
+    excited: { st: 2,  speed: 1.13, spread: 1.6 },
+    calm:    { st: -0.5, speed: 0.93, spread: 0.75 },
+    sad:     { st: -1.5, speed: 0.87, spread: 0.55 },
+    angry:   { st: 0.5, speed: 1.05, spread: 1.2, gain: 1.15 }
+  };
+
+  // Pitch tracking with a normalised autocorrelation (YIN-style difference).
+  function trackPitch(x, sr) {
+    var hop = Math.round(sr * 0.01), win = Math.round(sr * 0.04);
+    var minLag = Math.floor(sr / 500), maxLag = Math.ceil(sr / 60);
+    var frames = Math.max(1, Math.floor((x.length - win - maxLag) / hop));
+    var f0 = new Float32Array(frames), rmsAll = 0;
+    for (var i = 0; i < x.length; i++) rmsAll += x[i] * x[i];
+    rmsAll = Math.sqrt(rmsAll / Math.max(1, x.length));
+    var d = new Float32Array(maxLag + 1);
+    for (var fr = 0; fr < frames; fr++) {
+      var s = fr * hop, e = 0;
+      for (i = 0; i < win; i++) e += x[s + i] * x[s + i];
+      if (Math.sqrt(e / win) < rmsAll * 0.25) { f0[fr] = 0; continue; }
+      var run = 0, best = -1, bestV = 1;
+      d[0] = 1;
+      for (var lag = 1; lag <= maxLag; lag++) {
+        var sum = 0;
+        for (i = 0; i < win; i++) { var df = x[s + i] - x[s + i + lag]; sum += df * df; }
+        run += sum;
+        d[lag] = run > 0 ? sum * lag / run : 1;
+      }
+      for (lag = minLag; lag <= maxLag; lag++) {
+        if (d[lag] < 0.25) {
+          while (lag + 1 <= maxLag && d[lag + 1] < d[lag]) lag++;
+          best = lag; bestV = d[lag]; break;
+        }
+        if (d[lag] < bestV) { bestV = d[lag]; best = lag; }
+      }
+      f0[fr] = (best > 0 && bestV < 0.4) ? sr / best : 0;
+    }
+    // Median-of-5 smoothing removes octave blips.
+    var out = new Float32Array(frames);
+    for (fr = 0; fr < frames; fr++) {
+      var w = [];
+      for (var k = -2; k <= 2; k++) { var v = f0[Math.min(frames - 1, Math.max(0, fr + k))]; w.push(v); }
+      w.sort(function (a, b) { return a - b; });
+      out[fr] = f0[fr] > 0 ? (w[2] || f0[fr]) : 0;
+    }
+    return { f0: out, hop: hop };
+  }
+
+  function median(arr) {
+    var v = [];
+    for (var i = 0; i < arr.length; i++) if (arr[i] > 0) v.push(arr[i]);
+    if (!v.length) return 0;
+    v.sort(function (a, b) { return a - b; });
+    return v[v.length >> 1];
+  }
+
+  // Place analysis marks one period apart, snapped to waveform peaks.
+  function pitchMarks(x, sr, track) {
+    var marks = [], periods = [], voiced = [];
+    var unv = Math.round(sr / 100), t = 0;
+    while (t < x.length) {
+      var fr = Math.min(track.f0.length - 1, Math.floor(t / track.hop));
+      var f = track.f0[fr];
+      if (f > 0) {
+        var P = Math.round(sr / f), lo = Math.max(0, t - (P >> 2)), hi = Math.min(x.length - 1, t + (P >> 2)), m = t, mv = -1;
+        for (var i = lo; i <= hi; i++) { var a = Math.abs(x[i]); if (a > mv) { mv = a; m = i; } }
+        if (marks.length && m <= marks[marks.length - 1]) m = marks[marks.length - 1] + (P >> 1);
+        marks.push(m); periods.push(P); voiced.push(1); t = m + P;
+      } else {
+        marks.push(t); periods.push(unv); voiced.push(0); t += unv;
+      }
+    }
+    return { marks: marks, periods: periods, voiced: voiced };
+  }
+
+  function nearest(marks, t, hint) {
+    var i = hint;
+    while (i + 1 < marks.length && Math.abs(marks[i + 1] - t) <= Math.abs(marks[i] - t)) i++;
+    while (i > 0 && Math.abs(marks[i - 1] - t) < Math.abs(marks[i] - t)) i--;
+    return i;
+  }
+
+  // Main transform. opts: {voice, tone, pitch (semitones extra), speed}
+  function transform(x, sr, opts) {
+    opts = opts || {};
+    var V = VOICES[opts.voice] || VOICES.original, T = TONES[opts.tone] || TONES.normal;
+    var semis = T.st + (opts.pitch || 0);
+    var pitchMul = V.p * Math.pow(2, semis / 12);
+    var fmt = V.f * (opts.formant || 1);
+    var speed = T.speed * (opts.speed || 1);
+    var track = trackPitch(x, sr), base = median(track.f0) || 150;
+    var pm = pitchMarks(x, sr, track);
+    var outLen = Math.ceil(x.length / speed) + sr;
+    var out = new Float32Array(outLen), wsum = new Float32Array(outLen);
+    var ts = 0, hint = 0, seed = 1;
+    function rnd() { seed = (seed * 16807) % 2147483647; return seed / 2147483647 - 0.5; }
+    while (ts < outLen - sr) {
+      var ta = ts * speed;
+      if (ta >= x.length) break;
+      hint = nearest(pm.marks, ta, hint);
+      var m = pm.marks[hint], P = pm.periods[hint], isV = pm.voiced[hint];
+      var step;
+      if (isV) {
+        var f0 = sr / P, target;
+        if (V.robot) target = V.robot * Math.pow(2, semis / 12);
+        else target = base * pitchMul * Math.pow(f0 / base, T.spread);
+        if (V.jitter) target *= 1 + V.jitter * rnd();
+        step = sr / target;
+      } else step = P;
+      // Analysis half-width: at least one period, wider when we stretch gaps.
+      var W = Math.round(Math.max(P, step * fmt));
+      var G = Math.max(2, Math.round(W / fmt)); // synthesis half-width after formant scaling
+      var c = Math.round(ts);
+      for (var j = -G; j <= G; j++) {
+        var src = m + j * fmt, o = c + j;
+        if (o < 0 || o >= outLen) continue;
+        var i0 = Math.floor(src);
+        if (i0 < 0 || i0 + 1 >= x.length) continue;
+        var fr = src - i0, s = x[i0] + (x[i0 + 1] - x[i0]) * fr;
+        var w = 0.5 + 0.5 * Math.cos(Math.PI * j / (G + 1));
+        out[o] += s * w; wsum[o] += w;
+      }
+      ts += step;
+    }
+    var n = Math.min(outLen, Math.ceil(x.length / speed));
+    var res = new Float32Array(n), peak = 0;
+    for (var i = 0; i < n; i++) {
+      res[i] = wsum[i] > 0.05 ? out[i] / Math.max(wsum[i], 0.5) : 0;
+      var a = Math.abs(res[i]); if (a > peak) peak = a;
+    }
+    if (V.robot) { // a light metallic ring
+      for (i = 0; i < n; i++) res[i] *= 0.75 + 0.25 * Math.sin(2 * Math.PI * 55 * i / sr);
+    }
+    return normalize(res, 0.89 * (T.gain || 1));
+  }
+
+  function normalize(x, target) {
+    var peak = 0, i;
+    for (i = 0; i < x.length; i++) { var a = Math.abs(x[i]); if (a > peak) peak = a; }
+    if (peak > 0) { var g = Math.min(target, 0.98) / peak; for (i = 0; i < x.length; i++) x[i] *= g; }
+    // 20 ms fades so the clip never clicks.
+    var fl = Math.min(x.length >> 1, 441);
+    for (i = 0; i < fl; i++) { var r = i / fl; x[i] *= r; x[x.length - 1 - i] *= r; }
+    return x;
+  }
+
+  // Trim leading/trailing silence so voice notes start straight away.
+  function trimSilence(x, sr) {
+    var win = Math.round(sr * 0.02), thr = 0, i;
+    for (i = 0; i < x.length; i++) thr = Math.max(thr, Math.abs(x[i]));
+    thr *= 0.04;
+    var s = 0, e = x.length;
+    while (s < x.length - win) { var mx = 0; for (i = s; i < s + win; i++) mx = Math.max(mx, Math.abs(x[i])); if (mx > thr) break; s += win; }
+    while (e > s + win) { mx = 0; for (i = e - win; i < e; i++) mx = Math.max(mx, Math.abs(x[i])); if (mx > thr) break; e -= win; }
+    s = Math.max(0, s - win * 5); e = Math.min(x.length, e + win * 5);
+    return x.subarray(s, e);
+  }
+
+  function encodeWav(x, sr) {
+    var buf = new ArrayBuffer(44 + x.length * 2), v = new DataView(buf);
+    function str(o, s) { for (var i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); }
+    str(0, 'RIFF'); v.setUint32(4, 36 + x.length * 2, true); str(8, 'WAVE'); str(12, 'fmt ');
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+    str(36, 'data'); v.setUint32(40, x.length * 2, true);
+    for (var i = 0; i < x.length; i++) v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, x[i])) * 32767, true);
+    return buf;
+  }
+
+  // MP3 via lamejs when loaded (much smaller for WhatsApp), else WAV.
+  function encode(x, sr) {
+    var L = root.lamejs;
+    if (L && L.Mp3Encoder) {
+      try {
+        var enc = new L.Mp3Encoder(1, sr, 64), pcm = new Int16Array(x.length), parts = [];
+        for (var i = 0; i < x.length; i++) pcm[i] = Math.max(-1, Math.min(1, x[i])) * 32767;
+        for (i = 0; i < pcm.length; i += 1152) { var b = enc.encodeBuffer(pcm.subarray(i, i + 1152)); if (b.length) parts.push(b); }
+        var f = enc.flush(); if (f.length) parts.push(f);
+        return { data: parts, type: 'audio/mpeg', ext: 'mp3' };
+      } catch (e) { /* fall through to WAV */ }
+    }
+    return { data: [encodeWav(x, sr)], type: 'audio/wav', ext: 'wav' };
+  }
+
+  root.KonthoDSP = { VOICES: VOICES, TONES: TONES, transform: transform, trackPitch: trackPitch, median: median, trimSilence: trimSilence, encodeWav: encodeWav, encode: encode };
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
+<script>
+(function () {
+  'use strict';
+  var D = window.KonthoDSP, SR = 22050;
+  var $ = function (id) { return document.getElementById(id); };
+  var store = {
+    get: function (k, d) { try { var v = localStorage.getItem('kontho.' + k); return v == null ? d : v; } catch (e) { return d; } },
+    set: function (k, v) { try { localStorage.setItem('kontho.' + k, v); } catch (e) {} }
+  };
+
+  var VOICE_OPTS = [
+    ['female', '👩', 'মেয়ে', 'Female'], ['male', '👨', 'ছেলে', 'Male'], ['child', '🧒', 'বাচ্চা', 'Child'],
+    ['old', '👴', 'বয়স্ক', 'Elder'], ['robot', '🤖', 'রোবট', 'Robot'], ['cartoon', '🐭', 'কার্টুন', 'Cartoon'],
+    ['original', '🙂', 'নিজের', 'My voice']
+  ];
+  var TONE_OPTS = [['normal', 'স্বাভাবিক', 'Normal'], ['happy', '😊 খুশি', 'Happy'], ['calm', '😌 শান্ত', 'Calm'],
+    ['sad', '😢 দুঃখী', 'Sad'], ['excited', '🤩 উত্তেজিত', 'Excited'], ['angry', '😠 রাগী', 'Angry']];
+  // code, label, speech-recognition locale, [male, female] neural voices
+  var LANGS = [
+    ['same', 'একই ভাষা', '', null],
+    ['bn', 'বাংলা', 'bn-IN', ['bn-IN-BashkarNeural', 'bn-IN-TanishaaNeural']],
+    ['hi', 'हिन्दी', 'hi-IN', ['hi-IN-MadhurNeural', 'hi-IN-SwaraNeural']],
+    ['en', 'English', 'en-IN', ['en-IN-PrabhatNeural', 'en-IN-NeerjaNeural']],
+    ['ur', 'اردو', 'ur-PK', ['ur-PK-AsadNeural', 'ur-PK-UzmaNeural']],
+    ['ar', 'العربية', 'ar-SA', ['ar-SA-HamedNeural', 'ar-SA-ZariyahNeural']],
+    ['ta', 'தமிழ்', 'ta-IN', ['ta-IN-ValluvarNeural', 'ta-IN-PallaviNeural']],
+    ['te', 'తెలుగు', 'te-IN', ['te-IN-MohanNeural', 'te-IN-ShrutiNeural']],
+    ['mr', 'मराठी', 'mr-IN', ['mr-IN-ManoharNeural', 'mr-IN-AarohiNeural']],
+    ['gu', 'ગુજરાતી', 'gu-IN', ['gu-IN-NiranjanNeural', 'gu-IN-DhwaniNeural']],
+    ['ne', 'नेपाली', 'ne-NP', ['ne-NP-SagarNeural', 'ne-NP-HemkalaNeural']],
+    ['bn-BD', 'বাংলা (বাংলাদেশ)', 'bn-BD', ['bn-BD-PradeepNeural', 'bn-BD-NabanitaNeural']],
+    ['en-US', 'English (US)', 'en-US', ['en-US-GuyNeural', 'en-US-JennyNeural']],
+    ['es', 'Español', 'es-ES', ['es-ES-AlvaroNeural', 'es-ES-ElviraNeural']],
+    ['fr', 'Français', 'fr-FR', ['fr-FR-HenriNeural', 'fr-FR-DeniseNeural']],
+    ['de', 'Deutsch', 'de-DE', ['de-DE-ConradNeural', 'de-DE-KatjaNeural']],
+    ['ru', 'Русский', 'ru-RU', ['ru-RU-DmitryNeural', 'ru-RU-SvetlanaNeural']],
+    ['zh', '中文', 'zh-CN', ['zh-CN-YunxiNeural', 'zh-CN-XiaoxiaoNeural']],
+    ['ja', '日本語', 'ja-JP', ['ja-JP-KeitaNeural', 'ja-JP-NanamiNeural']]
+  ];
+  var QUICK = 7; // first chips; the rest go in the "more" select
+  var TONE_TTS = { normal: ['+0%', '+0Hz'], happy: ['+8%', '+12Hz'], excited: ['+15%', '+20Hz'], calm: ['-8%', '-4Hz'], sad: ['-15%', '-12Hz'], angry: ['+6%', '+4Hz'] };
+
+  var state = { tab: 'rec', voice: store.get('voice', 'female'), lang: 'same', src: store.get('src', 'bn'), tone: 'normal',
+    input: null, inputF0: 0, heard: '', out: null, outText: '' };
+  var inClaude = !!(window.claude && window.claude.use);
+  var downloadsCap = null;
+  if (inClaude) window.claude.use('downloads').then(function (d) { downloadsCap = d; }).catch(function () {});
+
+  function langBy(c) { for (var i = 0; i < LANGS.length; i++) if (LANGS[i][0] === c) return LANGS[i]; return LANGS[1]; }
+  function status(t) { $('status').textContent = t || ''; }
+
+  // ---------- build option controls ----------
+  VOICE_OPTS.forEach(function (v) {
+    var b = document.createElement('button');
+    b.className = 'opt'; b.dataset.v = v[0];
+    b.innerHTML = '<span class="ic">' + v[1] + '</span>' + v[2] + '<small>' + v[3] + '</small>';
+    b.onclick = function () { state.voice = v[0]; store.set('voice', v[0]); syncPressed(); };
+    $('voiceGrid').appendChild(b);
+  });
+  TONE_OPTS.forEach(function (t) {
+    var b = document.createElement('button');
+    b.className = 'chip'; b.dataset.t = t[0]; b.textContent = t[1]; b.title = t[2];
+    b.onclick = function () { state.tone = t[0]; syncPressed(); };
+    $('toneChips').appendChild(b);
+  });
+  LANGS.forEach(function (l, i) {
+    if (i < QUICK) {
+      var b = document.createElement('button');
+      b.className = 'chip'; b.dataset.l = l[0]; b.textContent = l[1];
+      b.onclick = function () { setLang(l[0]); };
+      $('langChips').appendChild(b);
+    }
+    if (l[0] !== 'same') {
+      var o = new Option(l[1], l[0]);
+      $('srcLang').appendChild(o);
+      if (i >= QUICK) $('moreLang').appendChild(new Option(l[1], l[0]));
+    }
+  });
+  $('moreLang').insertBefore(new Option('— বেছে নিন —', ''), $('moreLang').firstChild);
+  $('moreLang').value = '';
+  $('moreLang').onchange = function () { if (this.value) setLang(this.value); };
+  $('srcLang').value = state.src;
+  $('srcLang').onchange = function () { state.src = this.value; store.set('src', this.value); };
+  function setLang(c) { state.lang = c; syncPressed(); }
+  function syncPressed() {
+    document.querySelectorAll('#voiceGrid .opt').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.v === state.voice); });
+    document.querySelectorAll('#toneChips .chip').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.t === state.tone); });
+    document.querySelectorAll('#langChips .chip').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.l === state.lang); });
+    var inQuick = LANGS.slice(0, QUICK).some(function (l) { return l[0] === state.lang; });
+    $('moreLang').value = inQuick ? '' : state.lang;
+    $('srcRow').hidden = !(state.lang !== 'same' && state.tab !== 'text');
+  }
+
+  // ---------- tabs ----------
+  document.querySelectorAll('.tabs button').forEach(function (b) {
+    b.onclick = function () {
+      state.tab = b.dataset.tab;
+      document.querySelectorAll('.tabs button').forEach(function (x) { x.setAttribute('aria-selected', x === b); });
+      ['rec', 'file', 'text'].forEach(function (t) { $('pane-' + t).hidden = t !== state.tab; });
+      $('haveAudio').hidden = !(state.input && state.tab !== 'text');
+      if (state.tab === 'text' && state.lang === 'same') setLang('en');
+      syncPressed();
+    };
+  });
+
+  // ---------- audio helpers ----------
+  var actx = null;
+  function ctx() { if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); return actx; }
+  function toMono22k(buf) {
+    var len = Math.ceil(buf.duration * SR);
+    var off = new OfflineAudioContext(1, len, SR);
+    var s = off.createBufferSource(); s.buffer = buf; s.connect(off.destination); s.start();
+    return off.startRendering().then(function (r) { return r.getChannelData(0).slice(); });
+  }
+  function decode(arrayBuf) {
+    return new Promise(function (res, rej) { ctx().decodeAudioData(arrayBuf, res, rej); }).then(toMono22k);
+  }
+  function setInput(samples) {
+    var x = D.trimSilence(samples, SR);
+    state.input = new Float32Array(x);
+    state.inputF0 = D.median(D.trackPitch(state.input.subarray(0, Math.min(state.input.length, SR * 8)), SR).f0);
+    $('haveAudio').hidden = false;
+    $('haveLen').textContent = (state.input.length / SR).toFixed(1) + ' সেকেন্ড';
+    $('result').hidden = true;
+  }
+  var playing = null;
+  function playSamples(x, btn) {
+    stopPlay();
+    var b = ctx().createBuffer(1, x.length, SR); b.getChannelData(0).set(x);
+    var s = ctx().createBufferSource(); s.buffer = b; s.connect(ctx().destination); s.start();
+    playing = s; if (btn) btn.classList.add('on');
+    s.onended = function () { if (playing === s) playing = null; };
+  }
+  function stopPlay() { if (playing) { try { playing.stop(); } catch (e) {} playing = null; } }
+  function drawWave(canvas, x) {
+    var g = canvas.getContext('2d'), w = canvas.width, h = canvas.height, css = getComputedStyle(document.documentElement);
+    g.clearRect(0, 0, w, h); g.fillStyle = css.getPropertyValue('--primary').trim() || '#0E6E66';
+    var bars = Math.floor(w / 5), step = Math.max(1, Math.floor(x.length / bars));
+    for (var i = 0; i < bars; i++) {
+      var m = 0; for (var j = i * step; j < Math.min(x.length, (i + 1) * step); j++) m = Math.max(m, Math.abs(x[j]));
+      var bh = Math.max(3, m * h * 0.95); g.fillRect(i * 5, (h - bh) / 2, 3, bh);
+    }
+  }
+
+  // ---------- recording ----------
+  var rec = null, chunks = [], tStart = 0, tick = null, recog = null, liveRAF = null, micStream = null;
+  $('recBtn').onclick = function () { rec ? stopRec() : startRec(); };
+  function startRec() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return micFail();
+    navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }).then(function (stream) {
+      micStream = stream; chunks = []; state.heard = '';
+      rec = new MediaRecorder(stream);
+      rec.ondataavailable = function (e) { if (e.data.size) chunks.push(e.data); };
+      rec.onstop = function () {
+        stream.getTracks().forEach(function (t) { t.stop(); });
+        new Blob(chunks).arrayBuffer().then(decode).then(setInput).catch(function () { status('রেকর্ডিং পড়া গেল না, আবার চেষ্টা করুন।'); });
+      };
+      rec.start();
+      tStart = Date.now();
+      $('recBtn').classList.add('on'); $('recBtn').setAttribute('aria-label', 'রেকর্ড থামান');
+      $('recHint').textContent = 'বলছেন… শেষ হলে আবার চাপুন · Tap again to stop';
+      tick = setInterval(function () { var s = Math.floor((Date.now() - tStart) / 1000); $('timer').textContent = Math.floor(s / 60) + ':' + ('0' + s % 60).slice(-2); if (s >= 180) stopRec(); }, 250);
+      liveWave(stream);
+      if (state.lang !== 'same') startRecognition();
+    }).catch(micFail);
+  }
+  function stopRec() {
+    if (!rec) return;
+    rec.stop(); rec = null; clearInterval(tick);
+    if (recog) { try { recog.stop(); } catch (e) {} }
+    cancelAnimationFrame(liveRAF); $('liveWave').hidden = true;
+    $('recBtn').classList.remove('on'); $('recBtn').setAttribute('aria-label', 'রেকর্ড শুরু করুন');
+    $('recHint').textContent = 'আবার বলতে চাইলে লাল বোতাম চাপুন';
+  }
+  function micFail() {
+    status('মাইক চালু হলো না। 📁 "ভয়েস নোট" থেকে অডিও দিন, অথবা ফোনের সেটিংসে মাইক অনুমতি দিন।');
+    $('tab-file').click();
+  }
+  function liveWave(stream) {
+    try {
+      var an = ctx().createAnalyser(); an.fftSize = 1024;
+      ctx().createMediaStreamSource(stream).connect(an);
+      var buf = new Float32Array(an.fftSize), cv = $('liveWave'); cv.hidden = false;
+      (function loop() { an.getFloatTimeDomainData(buf); drawWave(cv, buf); liveRAF = requestAnimationFrame(loop); })();
+    } catch (e) {}
+  }
+  function startRecognition() {
+    var SRx = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SRx) return;
+    try {
+      recog = new SRx(); recog.lang = langBy(state.src)[2]; recog.continuous = true; recog.interimResults = false;
+      recog.onresult = function (e) { var t = ''; for (var i = 0; i < e.results.length; i++) t += e.results[i][0].transcript + ' '; state.heard = t.trim(); };
+      recog.onerror = function () {}; recog.onend = function () { recog = null; };
+      recog.start();
+    } catch (e) { recog = null; }
+  }
+
+  // ---------- file input ----------
+  $('fileIn').onchange = function () {
+    var f = this.files && this.files[0]; if (!f) return;
+    state.heard = '';
+    status('অডিও খোলা হচ্ছে…');
+    f.arrayBuffer().then(decode).then(function (x) { setInput(x); status(''); })
+      .catch(function () { status('এই ফাইলটা খোলা গেল না। mp3, m4a বা wav দিয়ে চেষ্টা করুন।'); });
+  };
+  $('hearIn').onclick = function () { if (state.input) playSamples(state.input); };
+
+  // ---------- server / network ----------
+  function server() { return (store.get('server', '') || '').replace(/\/+$/, ''); }
+  $('serverUrl').value = server();
+  $('serverUrl').onchange = function () { store.set('server', this.value.trim()); };
+  $('testServer').onclick = function () {
+    store.set('server', $('serverUrl').value.trim());
+    $('serverState').textContent = 'দেখছি…';
+    if (!server()) { $('serverState').textContent = 'লিংক দিন'; return; }
+    fetch(server() + '/').then(function (r) { return r.json(); }).then(function () { $('serverState').textContent = '✅ চালু আছে'; })
+      .catch(function () { $('serverState').textContent = '❌ পাওয়া যাচ্ছে না (প্রথমবার ৩০ সেকেন্ড লাগতে পারে)'; });
+  };
+  function tl(code) { return code === 'bn-BD' ? 'bn' : code === 'en-US' ? 'en' : code; }
+  function translate(text, to, from) {
+    var url = 'https://translate.googleapis.com/translate_a/single?client=gtx&dt=t&sl=' + (from ? tl(from) : 'auto') + '&tl=' + tl(to) + '&q=' + encodeURIComponent(text);
+    return fetch(url).then(function (r) { if (!r.ok) throw 0; return r.json(); })
+      .then(function (d) { return d[0].map(function (s) { return s[0]; }).join(''); })
+      .catch(function () {
+        if (!server()) throw new Error('অনুবাদ করা গেল না। ইন্টারনেট চালু আছে কিনা দেখে আবার চেষ্টা করুন।');
+        return fetch(server() + '/translate?to=' + tl(to) + '&text=' + encodeURIComponent(text)).then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(function (j) { return j.text; });
+      });
+  }
+  function serverStt(x) {
+    if (!server()) return Promise.reject(new Error('stt'));
+    var fd = new FormData();
+    fd.append('file', new Blob([D.encodeWav(x, SR)], { type: 'audio/wav' }), 'in.wav');
+    fd.append('lang', tl(state.src));
+    return fetch(server() + '/stt', { method: 'POST', body: fd }).then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(function (j) { return j.text; });
+  }
+  function serverTts(text, voiceName, tone) {
+    var p = TONE_TTS[tone] || TONE_TTS.normal;
+    var url = server() + '/tts?voice=' + voiceName + '&rate=' + encodeURIComponent(p[0]) + '&pitch=' + encodeURIComponent(p[1]) + '&text=' + encodeURIComponent(text);
+    return fetch(url).then(function (r) { if (!r.ok) throw 0; return r.arrayBuffer(); }).then(decode);
+  }
+
+  // ---------- main action ----------
+  $('goBtn').onclick = function () {
+    if (rec) stopRec();
+    var go = $('goBtn'); go.disabled = true; var old = go.innerHTML; go.innerHTML = '<span class="spin"></span> তৈরি হচ্ছে…';
+    $('result').hidden = true; $('resultNote').hidden = true; $('textOut').hidden = true;
+    setTimeout(function () {
+      run().catch(function (e) { status(e && e.message && e.message.length > 12 ? e.message : 'কিছু একটা সমস্যা হলো, আবার চেষ্টা করুন।'); })
+        .then(function () { go.disabled = false; go.innerHTML = old; });
+    }, 60);
+  };
+
+  function wantsSpeech() { return state.tab === 'text' || state.lang !== 'same'; }
+
+  function run() {
+    status('');
+    if (!wantsSpeech()) {
+      if (!state.input) throw new Error('আগে কথা বলুন বা একটা ভয়েস নোট দিন (ধাপ ১)।');
+      var t0 = performance.now();
+      var out = D.transform(state.input, SR, { voice: state.voice, tone: state.tone });
+      showResult(out, '');
+      status('⚡ ' + ((performance.now() - t0) / 1000).toFixed(1) + ' সেকেন্ডে তৈরি, পুরোটা আপনার ফোনে');
+      return Promise.resolve();
+    }
+    return getSourceText().then(function (src) {
+      if (!src) throw new Error('কোনো কথা পাওয়া গেল না। আবার বলুন বা লিখুন।');
+      var target = state.lang === 'same' ? state.src : state.lang;
+      status('অনুবাদ হচ্ছে…');
+      var from = state.tab === 'text' ? null : state.src;
+      var tr = (from && tl(from) === tl(target)) ? Promise.resolve(src) : translate(src, target, from);
+      return tr.then(function (text) { state.outText = text; return speak(text, target); });
+    });
+  }
+
+  function getSourceText() {
+    if (state.tab === 'text') return Promise.resolve($('textIn').value.trim());
+    if (state.heard) return Promise.resolve(state.heard);
+    if (!state.input) return Promise.reject(new Error('আগে কথা বলুন বা একটা ভয়েস নোট দিন (ধাপ ১)।'));
+    status('কথা বোঝা হচ্ছে…');
+    return serverStt(state.input).catch(function () {
+      throw new Error('অনুবাদের জন্য কথা বোঝা গেল না। "ভাষা" বেছে নিয়ে তারপর রেকর্ড করুন (Chrome-এ), অথবা "লিখুন" ব্যবহার করুন।');
+    });
+  }
+
+  // Natural neural voice from the free server, then on-device styling for child/elder/robot/cartoon.
+  function speak(text, target) {
+    var L = langBy(target), v = state.voice;
+    var female = v === 'female' || v === 'child' || v === 'cartoon' || (v === 'original' && state.inputF0 > 165);
+    if (v === 'original' && !state.inputF0) female = true;
+    if (!server()) return deviceSpeak(text, L, female);
+    status('কণ্ঠ তৈরি হচ্ছে…');
+    return serverTts(text, L[3][female ? 1 : 0], state.tone).then(function (x) {
+      var post = { child: 'child', old: 'old', robot: 'robot', cartoon: 'cartoon' }[v];
+      var out = post ? D.transform(x, SR, { voice: post, tone: 'normal', pitch: post === 'child' ? -4 : 0, formant: post === 'child' ? 0.9 : 1 }) : x;
+      showResult(out, text);
+      status('✅ ' + L[1] + ' · প্রাকৃতিক উচ্চারণ');
+    }).catch(function () { return deviceSpeak(text, L, female, true); });
+  }
+
+  // Fallback: the phone's own voice. Plays fine but cannot be saved as a file.
+  function deviceSpeak(text, L, female, serverDown) {
+    showResult(null, text);
+    var note = serverDown ? 'ভয়েস সার্ভার এখন সাড়া দিচ্ছে না।' : 'অনুবাদ রেডি।';
+    note += ' এখন ফোনের নিজের কণ্ঠে শোনানো হচ্ছে। WhatsApp-এ অডিও পাঠাতে ⚙ সেটিংসে ফ্রি ভয়েস সার্ভার লিংক দিন। ততক্ষণ লেখাটা কপি করে পাঠাতে পারেন।';
+    $('resultNote').textContent = note; $('resultNote').hidden = false;
+    deviceVoice = { text: text, L: L, female: female };
+    sayOnDevice();
+    status('');
+    return Promise.resolve();
+  }
+  var deviceVoice = null;
+  function sayOnDevice() {
+    if (!window.speechSynthesis || !deviceVoice) return;
+    var u = new SpeechSynthesisUtterance(deviceVoice.text), loc = deviceVoice.L[2];
+    u.lang = loc;
+    var vs = speechSynthesis.getVoices().filter(function (v) { return v.lang && v.lang.replace('_', '-').indexOf(loc.slice(0, 2)) === 0; });
+    var want = deviceVoice.female ? /female|woman|zira|swara|tanishaa|heera|kalpana|samantha|google/i : /male|man|madhur|bashkar|ravi|hemant|david|daniel/i;
+    u.voice = vs.filter(function (v) { return want.test(v.name); })[0] || vs[0] || null;
+    var T = D.TONES[state.tone];
+    u.rate = T.speed; u.pitch = Math.max(0.1, Math.min(2, (deviceVoice.female ? 1.15 : 0.8) * Math.pow(2, T.st / 12)));
+    speechSynthesis.cancel(); speechSynthesis.speak(u);
+  }
+
+  function showResult(x, text) {
+    state.out = x;
+    $('textOut').hidden = !text; $('textOut').textContent = text || '';
+    $('result').hidden = false;
+    var cv = $('outWave');
+    if (x) { drawWave(cv, x); playSamples(x); } else cv.getContext('2d').clearRect(0, 0, cv.width, cv.height);
+    $('waBtn').innerHTML = x ? $('waBtn').innerHTML.replace(/লেখা পাঠান|WhatsApp-এ পাঠান/, 'WhatsApp-এ পাঠান') : $('waBtn').innerHTML.replace('WhatsApp-এ পাঠান', 'লেখা পাঠান');
+    $('saveBtn').textContent = x ? '⬇ সেভ করুন' : '📋 লেখা কপি';
+    $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  $('playBtn').onclick = function () { if (state.out) playSamples(state.out); else sayOnDevice(); };
+  $('againBtn').onclick = function () { stopPlay(); $('result').hidden = true; window.scrollTo({ top: 0, behavior: 'smooth' }); };
+
+  function outFile() {
+    var e = D.encode(state.out, SR);
+    var name = 'kontho-' + state.voice + '-' + new Date().toISOString().slice(11, 19).replace(/:/g, '') + '.' + e.ext;
+    return new File(e.data, name, { type: e.type });
+  }
+  $('waBtn').onclick = function () {
+    if (!state.out) { // text only: open WhatsApp with the translated text
+      window.open('https://wa.me/?text=' + encodeURIComponent(state.outText), '_blank');
+      return;
+    }
+    var f = outFile();
+    if (navigator.canShare && navigator.canShare({ files: [f] })) {
+      navigator.share({ files: [f], title: 'Kontho voice' }).catch(function () {});
+      return;
+    }
+    save(f).then(function (ok) {
+      status(ok ? 'ফাইল সেভ হয়েছে। WhatsApp খুলে 📎 → Audio/Document থেকে ফাইলটা পাঠান।' : 'এখানে সরাসরি পাঠানো যাচ্ছে না। ফোনের Chrome-এ অ্যাপটা খুলুন।');
+    });
+  };
+  $('saveBtn').onclick = function () {
+    if (!state.out) {
+      var t = state.outText;
+      (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { status('📋 কপি হয়েছে'); }).catch(function () { status('লেখাটা চেপে ধরে কপি করুন'); });
+      return;
+    }
+    save(outFile()).then(function (ok) { status(ok ? '⬇ সেভ হয়েছে' : 'সেভ করা গেল না'); });
+  };
+  function save(f) {
+    if (downloadsCap) {
+      return f.arrayBuffer().then(function (b) { return downloadsCap.save({ filename: f.name, data: new Uint8Array(b) }); }).then(function () { return true; }, function () { return false; });
+    }
+    try {
+      var a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = f.name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+      return Promise.resolve(true);
+    } catch (e) { return Promise.resolve(false); }
+  }
+
+  // ---------- start ----------
+  if (inClaude) {
+    // Inside Claude the mic is blocked, so lead with voice notes.
+    $('tab-file').click();
+    $('recHint').textContent = 'এই প্রিভিউতে মাইক বন্ধ। ভয়েস নোট দিন, বা পুরো অ্যাপটা ফোনের Chrome-এ খুলুন।';
+  }
+  syncPressed();
+  if ('serviceWorker' in navigator && location.protocol === 'https:' && !inClaude) {
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+  }
+  // Demo sample so the first screen shows what the app does.
+  (function demo() {
+    if (state.input) return;
+    var n = SR * 2, x = new Float32Array(n), ph = 0;
+    for (var i = 0; i < n; i++) {
+      var t = i / SR, f0 = 120 + 25 * Math.sin(2 * Math.PI * 1.3 * t), env = Math.min(1, t * 8, (2 - t) * 8) * (0.6 + 0.4 * Math.sin(2 * Math.PI * 3 * t));
+      ph += f0 / SR; if (ph >= 1) { ph -= 1; x[i] = env; }
+    }
+    [[700, 90], [1200, 110], [2600, 160]].forEach(function (fb) {
+      var r = Math.exp(-Math.PI * fb[1] / SR), a1 = 2 * r * Math.cos(2 * Math.PI * fb[0] / SR), a2 = -r * r, y1 = 0, y2 = 0;
+      for (var i = 0; i < n; i++) { var y = x[i] + a1 * y1 + a2 * y2; y2 = y1; y1 = y; x[i] = y; }
+    });
+    setInput(x);
+    $('haveLen').textContent = '(ডেমো আওয়াজ, নিজের ভয়েস দিয়ে বদলান)';
+  })();
+})();
+</script>
+</body></html>

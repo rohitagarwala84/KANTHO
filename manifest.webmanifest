@@ -1,0 +1,17 @@
+{
+ "name": "Kontho Voice Studio",
+ "short_name": "Kontho",
+ "lang": "bn",
+ "start_url": "./",
+ "display": "standalone",
+ "background_color": "#F3F5F4",
+ "theme_color": "#0E6E66",
+ "icons": [
+  {
+   "src": "icon.svg",
+   "sizes": "any",
+   "type": "image/svg+xml",
+   "purpose": "any maskable"
+  }
+ ]
+}
